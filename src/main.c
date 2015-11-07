@@ -24,6 +24,7 @@ int main(void) {
 
 	char buffer[4];
 
+
     /*
      *  Initialize UART library, pass baudrate and AVR cpu clock
      *  with the macro
@@ -38,15 +39,74 @@ int main(void) {
      */
     sei();
 
-    int i = 0;
+    unsigned int c;
+
+
+    uart_puts("Ready.\r\n");
 
 	while(1) {
 
-		uart_puts(itoa(i++, buffer, 10));
-		uart_puts("\r\n");
+        /*
+         * Get received character from ringbuffer
+         * uart_getc() returns in the lower byte the received character and
+         * in the higher byte (bitmask) the last receive error
+         * UART_NO_DATA is returned when no data is available.
+         *
+         */
+        c = uart_getc();
 
-		PORTC ^= 1 << PINC4;
-		_delay_ms(500);
+        if ( c & UART_NO_DATA )
+        {
+            /*
+             * no data available from UART
+             */
+        }
+        else
+        {
+            /*
+             * new data available from UART
+             * check for Frame or Overrun error
+             */
+            if ( c & UART_FRAME_ERROR )
+            {
+                /* Framing Error detected, i.e no stop bit detected */
+                uart_puts_P("UART Frame Error: ");
+            }
+            if ( c & UART_OVERRUN_ERROR )
+            {
+                /*
+                 * Overrun, a character already present in the UART UDR register was
+                 * not read by the interrupt handler before the next character arrived,
+                 * one or more received characters have been dropped
+                 */
+                uart_puts_P("UART Overrun Error: ");
+            }
+            if ( c & UART_BUFFER_OVERFLOW )
+            {
+                /*
+                 * We are not reading the receive buffer fast enough,
+                 * one or more received character have been dropped
+                 */
+                uart_puts_P("Buffer overflow error: ");
+            }
+            /*
+             * send received character back
+             */
+
+            // PORTC ^= 1 << PINC4;
+
+            if ((unsigned char)c == 'n') {
+            	setPin(PORTC,4);
+            	uart_puts("On.\r\n");
+            }
+            else if ((unsigned char)c ==  'm') {
+            	clearPin(PORTC,4);
+            	uart_puts("Off.\r\n");
+            }
+
+            // uart_putc( (unsigned char)c );
+
+        }
 	}
 
 
